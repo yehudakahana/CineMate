@@ -8,14 +8,26 @@ import { Bar, MovieCard, Poster, SaveButton } from '../components/Cards'
 import Picker from '../components/Picker'
 
 const PAGE = 24
+const DECADES = [2020, 2010, 2000, 1990, 1980, 1970]
 
-function telegramShareUrl(movie: Movie) {
+function telegramShare(movie: Movie) {
   const en = movie.titleEn && movie.titleEn !== movie.title ? ` / ${movie.titleEn}` : ''
   const text = `${movie.title}${en}${movie.year ? ` (${movie.year})` : ''}`
   const url = `${window.location.origin}${import.meta.env.BASE_URL}movie/${movie.id}`
-  return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
+  const q = `url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
+  return { web: `https://t.me/share/url?${q}`, app: `tg://msg_url?${q}` }
 }
-const DECADES = [2020, 2010, 2000, 1990, 1980, 1970]
+
+// On phones the t.me web link often opens Telegram without the message, so go straight to the app link
+// and fall back to the web link if the app didn't open.
+function openTelegram(e: React.MouseEvent, movie: Movie) {
+  if (!matchMedia('(pointer: coarse)').matches) return
+  e.preventDefault()
+  const { web, app } = telegramShare(movie)
+  const timer = setTimeout(() => { if (!document.hidden) window.location.href = web }, 1500)
+  document.addEventListener('visibilitychange', () => clearTimeout(timer), { once: true })
+  window.location.href = app
+}
 
 export default function MoviePage() {
   const { id } = useParams()
@@ -74,7 +86,7 @@ export default function MoviePage() {
             <SaveButton id={movie.id} label />
             <button className="btn" onClick={() => setPick((p) => !p)} aria-expanded={pick}>השוואה לסרט אחר</button>
             <button className="btn ghost" onClick={() => { navigator.clipboard?.writeText(window.location.href) }}>העתקת קישור</button>
-            <a className="btn tg" href={telegramShareUrl(movie)} target="_blank" rel="noreferrer">פתח בטלגרם</a>
+            <a className="btn tg" href={telegramShare(movie).web} target="_blank" rel="noreferrer" onClick={(e) => openTelegram(e, movie)}>פתח בטלגרם</a>
           </div>
           {pick && (
             <div className="panel">
