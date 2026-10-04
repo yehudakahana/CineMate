@@ -28,7 +28,7 @@ main{padding-top:20px;padding-bottom:50px;min-height:70vh}
 .foot{color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);padding-top:16px;padding-bottom:30px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--bg3);color:var(--text);border:1px solid var(--line);border-radius:999px;padding:10px 20px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;min-height:46px}
 .btn:hover{border-color:var(--gold)}.btn.primary{background:var(--gold);color:#16120a;border-color:var(--gold)}
-.btn.ghost{background:transparent}.btn.small{padding:6px 12px;min-height:40px;font-size:.9rem}
+.btn.ghost{background:transparent}.btn.tg{background:#229ed9;border-color:#229ed9;color:#fff}.btn.tg:hover{border-color:#fff}.btn.small{padding:6px 12px;min-height:40px;font-size:.9rem}
 .panel{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin:16px 0}
 .notice{background:#2a2118;border:1px solid #5a4620;border-radius:var(--r);padding:14px 18px;margin:14px 0}
 .notice.big{text-align:center;padding:40px 20px}.notice.small{font-size:.95rem}

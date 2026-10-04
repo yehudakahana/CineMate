@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useData } from '../data'
+import { type Movie, useData } from '../data'
 import { useStats } from '../hooks'
 import { METRICS, GROUPS, levelWord, norm } from '../metrics'
 import { DEFAULT_WEIGHTS, findSimilar, parseWeights, reasonsFor, weightsToParam } from '../similarity'
@@ -8,6 +8,13 @@ import { Bar, MovieCard, Poster, SaveButton } from '../components/Cards'
 import Picker from '../components/Picker'
 
 const PAGE = 24
+
+function telegramShareUrl(movie: Movie) {
+  const en = movie.titleEn && movie.titleEn !== movie.title ? ` / ${movie.titleEn}` : ''
+  const text = `${movie.title}${en}${movie.year ? ` (${movie.year})` : ''}`
+  const url = `${window.location.origin}${import.meta.env.BASE_URL}movie/${movie.id}`
+  return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
+}
 const DECADES = [2020, 2010, 2000, 1990, 1980, 1970]
 
 export default function MoviePage() {
@@ -67,6 +74,7 @@ export default function MoviePage() {
             <SaveButton id={movie.id} label />
             <button className="btn" onClick={() => setPick((p) => !p)} aria-expanded={pick}>השוואה לסרט אחר</button>
             <button className="btn ghost" onClick={() => { navigator.clipboard?.writeText(window.location.href) }}>העתקת קישור</button>
+            <a className="btn tg" href={telegramShareUrl(movie)} target="_blank" rel="noreferrer">פתח בטלגרם</a>
           </div>
           {pick && (
             <div className="panel">
