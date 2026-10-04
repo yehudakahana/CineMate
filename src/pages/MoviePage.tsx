@@ -18,14 +18,15 @@ function telegramShare(movie: Movie) {
   return { web: `https://t.me/share/url?${q}`, app: `tg://msg_url?${q}` }
 }
 
-// On phones the t.me web link often opens Telegram without the message, so go straight to the app link
-// and fall back to the web link if the app didn't open.
+// The t.me web link often opens Telegram without the message, so go straight to the app link.
+// If the app doesn't take over (page never hidden or blurred), fall back to the web link.
 function openTelegram(e: React.MouseEvent, movie: Movie) {
-  if (!matchMedia('(pointer: coarse)').matches) return
   e.preventDefault()
   const { web, app } = telegramShare(movie)
-  const timer = setTimeout(() => { if (!document.hidden) window.location.href = web }, 1500)
-  document.addEventListener('visibilitychange', () => clearTimeout(timer), { once: true })
+  const timer = setTimeout(() => { if (!document.hidden && document.hasFocus()) window.location.href = web }, 2000)
+  const cancel = () => clearTimeout(timer)
+  document.addEventListener('visibilitychange', cancel, { once: true })
+  window.addEventListener('blur', cancel, { once: true })
   window.location.href = app
 }
 
