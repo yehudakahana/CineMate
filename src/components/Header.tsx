@@ -58,10 +58,10 @@ export default function Header() {
           )}
         </form>
         <nav className="nav" aria-label="ניווט ראשי">
-          <NavLink to="/" end>גלו</NavLink>
-          <NavLink to="/find">מה מתאים לי</NavLink>
-          <NavLink to="/saved">שמורים{ids.length > 0 && <b className="badge">{ids.length}</b>}</NavLink>
-          <NavLink to="/about">איך זה עובד</NavLink>
+          <NavLink to="/" end><span className="ni" aria-hidden="true">🧭</span><span>גלו</span></NavLink>
+          <NavLink to="/find"><span className="ni" aria-hidden="true">✨</span><span>מה מתאים לי</span></NavLink>
+          <NavLink to="/saved"><span className="ni" aria-hidden="true">♡</span><span>שמורים</span>{ids.length > 0 && <b className="badge">{ids.length}</b>}</NavLink>
+          <NavLink to="/about"><span className="ni" aria-hidden="true">ℹ️</span><span>איך זה עובד</span></NavLink>
         </nav>
       </div>
     </header>
