@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { type Movie, useData } from '../data'
+import { useData } from '../data'
 import { useStats } from '../hooks'
 import { METRICS, GROUPS, levelWord, norm } from '../metrics'
 import { DEFAULT_WEIGHTS, findSimilar, parseWeights, reasonsFor, weightsToParam } from '../similarity'
@@ -10,24 +10,13 @@ import Picker from '../components/Picker'
 const PAGE = 24
 const DECADES = [2020, 2010, 2000, 1990, 1980, 1970]
 
-function telegramShare(movie: Movie) {
-  const en = movie.titleEn && movie.titleEn !== movie.title ? ` / ${movie.titleEn}` : ''
-  const text = `${movie.title}${en}${movie.year ? ` (${movie.year})` : ''}`
-  const url = `${window.location.origin}${import.meta.env.BASE_URL}movie/${movie.id}`
-  const q = `url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
-  return { web: `https://t.me/share/url?${q}`, app: `tg://msg_url?${q}` }
-}
-
-// The t.me web link often opens Telegram without the message, so go straight to the app link.
-// If the app doesn't take over (page never hidden or blurred), fall back to the web link.
-function openTelegram(e: React.MouseEvent, movie: Movie) {
-  e.preventDefault()
-  const { web, app } = telegramShare(movie)
-  const timer = setTimeout(() => { if (!document.hidden && document.hasFocus()) window.location.href = web }, 2000)
-  const cancel = () => clearTimeout(timer)
-  document.addEventListener('visibilitychange', cancel, { once: true })
-  window.addEventListener('blur', cancel, { once: true })
-  window.location.href = app
+// Telegram has no reliable "search for X" link, so copy the title and just open the app;
+// the user pastes it into Telegram's search bar.
+async function openTelegramWithTitle(title: string): Promise<boolean> {
+  let copied = false
+  try { await navigator.clipboard.writeText(title); copied = true } catch { /* shown in the note instead */ }
+  window.location.href = 'tg://'
+  return copied
 }
 
 export default function MoviePage() {
@@ -38,6 +27,7 @@ export default function MoviePage() {
   const [sp, setSp] = useSearchParams()
   const [pick, setPick] = useState(false)
   const [adv, setAdv] = useState(false)
+  const [tg, setTg] = useState<'copied' | 'manual' | null>(null)
   const movie = id ? byId.get(id) : undefined
 
   const maxV = Number(sp.get('vi')) || 5
@@ -87,8 +77,14 @@ export default function MoviePage() {
             <SaveButton id={movie.id} label />
             <button className="btn" onClick={() => setPick((p) => !p)} aria-expanded={pick}>השוואה לסרט אחר</button>
             <button className="btn ghost" onClick={() => { navigator.clipboard?.writeText(window.location.href) }}>העתקת קישור</button>
-            <a className="btn tg" href={telegramShare(movie).web} target="_blank" rel="noreferrer" onClick={(e) => openTelegram(e, movie)}>פתח בטלגרם</a>
+            <button className="btn tg" onClick={async () => setTg((await openTelegramWithTitle(movie.title)) ? 'copied' : 'manual')}>פתח בטלגרם</button>
           </div>
+          {tg && (
+            <p className="notice small" role="status">
+              {tg === 'copied' ? <>השם <b>{movie.title}</b> הועתק. הדביקו אותו בשורת החיפוש בטלגרם.</> : <>העתיקו את השם <b className="sel">{movie.title}</b> והדביקו אותו בשורת החיפוש בטלגרם.</>}
+              {' '}טלגרם לא נפתח? <a href="https://web.telegram.org/" target="_blank" rel="noreferrer">טלגרם ווב</a>
+            </p>
+          )}
           {pick && (
             <div className="panel">
               <Picker placeholder="לאיזה סרט להשוות?" exclude={movie.id} autoFocus onPick={(m) => nav(`/compare/${movie.id}/${m.id}`)} />
