@@ -1,40 +1,99 @@
-# סרט לפי הטעם: ממשק חדש לנתוני cinema-dna
+# 🎬 CineMate
 
-אתר סטטי (React 18 + Vite + TypeScript), עברית ו-RTL, בלי שרת. הנתונים נטענים מהקובץ הציבורי
-`https://cinema-dna.pages.dev/final_classified_db.json` והתמונות מאחסון ה-R2 הציבורי.
-האתר המקורי לא משתנה.
+Find movies by how they *feel*, not by genre. CineMate is a Hebrew, right-to-left web app over a catalog of about 1,050 films. Each film is scored on 12 "mood DNA" dimensions, and the app uses those scores to recommend similar movies, filter by mood, and compare two films side by side.
 
-## הרצה מקומית
+![Home](docs/screenshots/home.png)
+
+## Screenshots
+
+| Find by mood | Movie page |
+|---|---|
+| ![Find by mood](docs/screenshots/find.png) | ![Movie page](docs/screenshots/movie.png) |
+
+| Compare two movies | How it works |
+|---|---|
+| ![Compare](docs/screenshots/compare.png) | ![About](docs/screenshots/about.png) |
+
+## Tech stack
+
+- **React 18** + **TypeScript**, bundled with **Vite 5**
+- **React Router 6** for client-side routing
+- **Heebo** variable font (via `@fontsource-variable/heebo`)
+- Plain CSS (`src/styles.css`) with a dark theme and full RTL layout
+- No backend: the app is a fully static single-page app
+
+## Getting started
+
+Requires Node 18+.
+
 ```bash
 npm install
-npm run dev        # פיתוח
-npm run build      # בנייה ל-dist
-npm run preview    # תצוגה של הבנייה
+npm run dev        # dev server at http://localhost:5173
+npm run build      # type-check + production build to dist/
+npm run preview    # serve the production build locally
 ```
-נדרש Node 18 ומעלה.
 
-## פריסה ב-Cloudflare Pages (דומיין חדש)
-1. צרו ריפו חדש, חלצו אליו את הארכיון ודחפו (git push).
-2. ב-Cloudflare: Workers & Pages, Create, Pages, Connect to Git, בחרו את הריפו.
-3. Build command: `npm run build`. Build output directory: `dist`. משתנה סביבה: `NODE_VERSION=20`.
-4. אחרי הפריסה: Custom domains, Set up a custom domain, והוסיפו את הדומיין החדש.
-   (בלי Git: `npm run build` ואז `npx wrangler pages deploy dist`).
-5. אין צורך בקובץ הפניות: ל-Pages יש חזרה אוטומטית ל-index.html עבור כתובות כמו `/movie/...`.
+### Environment variables (optional)
 
-## משתנים אופציונליים
-ראו `.env.example`: `VITE_DATA_URL`, `VITE_IMAGE_BASE`. אם הקובץ המקוון לא נטען, האתר משתמש בעותק
-שמור ב-`public/data-snapshot.json` (צילום מ-4.10.2026).
+See `.env.example`:
 
-## מבנה
-- `src/metrics.ts` הגדרת 12 המדדים בעברית פשוטה ומצבי הרוח
-- `src/similarity.ts` חישוב דמיון (אותה נוסחה כמו באתר המקורי) והסברי "למה דומה"
-- `src/data.tsx` טעינה, ניקוי נתונים, שמירת סרטים ב-localStorage
-- `src/pages/*` המסכים
+| Variable | Purpose |
+|---|---|
+| `VITE_DATA_URL` | URL of the movie database JSON |
+| `VITE_IMAGE_BASE` | Base URL for poster and director images |
+| `BASE_PATH` | Public base path at build time (default `/`) |
 
-## נתונים ידועים כבעייתיים (מטופלים)
-- הרשומה "חלומות" של הוגרד מעורבבת: תקציר וקישורים מוסתרים.
-- מזהי IMDb שמופיעים בשני סרטים: הקישור מוסתר.
-- פרסי אוסקר לא מוצגים (לא אומתו). פוסטר חסר מוחלף בכרטיס עם שם הסרט.
+## How it works
 
-## הערת רישוי
-המאגר והתמונות שייכים למפעילי האתר המקורי ולא נמצא רישיון שימוש. לפני שימוש ציבורי כדאי לברר הרשאה.
+### Data loading (`src/data.tsx`)
+On startup, `DataProvider` fetches the movie database from `VITE_DATA_URL`. If that request fails, it falls back to the bundled copy in `public/data-snapshot.json`. Raw records are cleaned and normalized: titles, director keys, image URLs and a search string are prepared, and bad or duplicate links are hidden. Directors are grouped from the movie list. Saved movies are stored in `localStorage`.
+
+### The 12 dimensions (`src/metrics.ts`)
+Each movie has 12 scores grouped into three families:
+
+| Group | Dimensions |
+|---|---|
+| Style & look | story scale, plot vs. mood, raw vs. stylized, grounded vs. surreal |
+| Mood & emotion | restraint, warmth, psychological depth, irony/satire, ambiguity, heaviness |
+| Sensitive content | violence, sexuality |
+
+Most dimensions are on a 1–10 scale; violence and sexuality are on a 1–5 scale. Each dimension has a weight, so warmth and depth count more than violence when matching. The "mood" presets on the *Find* page map to combinations of low/medium/high buckets.
+
+### Similarity (`src/similarity.ts`)
+1. Every score is converted to a **z-score** using the mean and standard deviation across the whole catalog.
+2. The distance between two movies is a **weighted Euclidean distance** over the 12 z-scores.
+3. Distances are scaled by the 40th percentile and turned into a 0–100 match score:
+   `score = 100 · exp(−0.45 · (d / p40)^1.3)`
+4. Films by the same director get a small bonus (+6, capped at 96).
+5. **"Why it's similar"** explanations pick up to three dimensions where both films are close *and* far from the middle of the scale, so they share something distinctive rather than both being average.
+
+Users can tune the weights per dimension. The weights are stored in the URL, so results can be shared.
+
+## Project structure
+
+```
+src/
+  main.tsx            app entry, router and data provider
+  App.tsx             routes and layout
+  data.tsx            data fetching, cleaning, saved-movies store
+  metrics.ts          the 12 dimensions, labels, weights, moods
+  similarity.ts       z-scores, distance, match score, explanations
+  hooks.ts            memoized catalog statistics
+  components/         Header, movie cards, movie picker
+  pages/              Home, Find, Movie, Compare, Director, Saved, Search, About
+public/
+  data-snapshot.json  offline fallback copy of the database
+```
+
+## Routes
+
+| Path | Page |
+|---|---|
+| `/` | Home: browse all movies, quick search |
+| `/find` | Pick a mood or fine-tune dimensions |
+| `/movie/:id` | Movie profile and similar movies |
+| `/compare/:a/:b` | Side-by-side comparison |
+| `/director/:key` | Director filmography |
+| `/saved` | Saved movies |
+| `/search` | Search results |
+| `/about` | Explanation of the method |
