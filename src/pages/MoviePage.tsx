@@ -156,7 +156,7 @@ export default function MoviePage() {
             {allZero && <p className="notice small">כל התכונות על 0, לכן משתמשים בהגדרות הרגילות.</p>}
           </div>
         )}
-        <p className="muted">{results.length.toLocaleString('he')} סרטים מתאימים. "% דומה" הוא ציון של השיטה, לא סיכוי שתאהבו ולא דירוג איכות.</p>
+        <p className="muted">{results.filter((r) => r.score >= 75).length.toLocaleString('he')} סרטים דומים באמת · הכל ממוין מהדומה ביותר. "% דומה" הוא ציון של השיטה, לא סיכוי שתאהבו ולא דירוג איכות.</p>
         {results.length === 0 && <p className="notice">אין סרטים שעונים על הסינון. נסו להסיר חלק ממנו.</p>}
         <div className="grid">
           {results.slice(0, shown).map((r) => (
