@@ -98,7 +98,8 @@ function clean(raw: RawMovie[]): { movies: Movie[]; skipped: number } {
     const directorEn = val(r.director_e)
     const d = r.director_fixed ? fixedInfo(r) : r
     const director = val(d?.director_h) || directorEn
-    const directorImage = d?.local_director_image || null
+    // תמונות במאים נקראות לפי שם הבמאי. שם מספרי (כמו directors/0.webp) הוא ערך ריק מהגיליון
+    const directorImage = d?.local_director_image && !/^\/?directors\/\d+\./.test(d.local_director_image) ? d.local_director_image : null
     let imdbId = r.imdb_id || null
     let wikiUrl = r.wiki_url || null
     // התקציר המתוקן גובר על המקורי. תרגום שלא תואם לסרט לא מוצג
