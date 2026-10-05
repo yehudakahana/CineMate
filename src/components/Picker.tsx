@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
 import { normalizeText, useData, type Movie } from '../data'
+import { useLang } from '../i18n'
 
 export default function Picker({ placeholder, onPick, exclude, autoFocus }: { placeholder: string; onPick: (m: Movie) => void; exclude?: string; autoFocus?: boolean }) {
   const { movies } = useData()
+  const { t, title, director } = useLang()
   const [q, setQ] = useState('')
   const res = useMemo(() => {
     const n = normalizeText(q)
@@ -15,11 +17,11 @@ export default function Picker({ placeholder, onPick, exclude, autoFocus }: { pl
       {res.length > 0 && (
         <ul className="picker-list">
           {res.map((m) => (
-            <li key={m.id}><button type="button" onClick={() => onPick(m)}><b>{m.title}</b><small>{m.year} · {m.director}</small></button></li>
+            <li key={m.id}><button type="button" onClick={() => onPick(m)}><b>{title(m)}</b><small>{m.year} · {director(m)}</small></button></li>
           ))}
         </ul>
       )}
-      {q && res.length === 0 && <p className="muted">לא נמצא סרט בשם הזה במאגר.</p>}
+      {q && res.length === 0 && <p className="muted">{t('לא נמצא סרט בשם הזה במאגר.', 'No movie by that name in the database.')}</p>}
     </div>
   )
 }

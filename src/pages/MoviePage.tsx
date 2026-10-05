@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useData } from '../data'
+import { useLang } from '../i18n'
 import { useStats } from '../hooks'
 import { METRICS, GROUPS, levelWord, norm } from '../metrics'
 import { DEFAULT_WEIGHTS, findSimilar, parseWeights, reasonsFor, weightsToParam } from '../similarity'
@@ -28,6 +29,7 @@ export default function MoviePage() {
   const [pick, setPick] = useState(false)
   const [adv, setAdv] = useState(false)
   const [tg, setTg] = useState<'copied' | 'manual' | null>(null)
+  const { lang, t, num, title, director } = useLang()
   const movie = id ? byId.get(id) : undefined
 
   const maxV = Number(sp.get('vi')) || 5
@@ -46,7 +48,7 @@ export default function MoviePage() {
     )
   }, [movie, movies, stats, weights, maxV, maxS, dec])
 
-  if (!movie) return <div className="notice big"><h2>הסרט לא נמצא</h2><Link className="btn primary" to="/">חזרה לדף הבית</Link></div>
+  if (!movie) return <div className="notice big"><h2>{t('הסרט לא נמצא', 'Movie not found')}</h2><Link className="btn primary" to="/">{t('חזרה לדף הבית', 'Back to home')}</Link></div>
 
   const set = (k: string, v: string | null) => {
     const n = new URLSearchParams(sp)
@@ -63,38 +65,52 @@ export default function MoviePage() {
   // התכונות הבולטות ביותר של הסרט
   const top = METRICS.map((m, i) => ({ m, v: movie.values[i], e: Math.abs(norm(m, movie.values[i]) - 0.5) }))
     .sort((a, b) => b.e - a.e).slice(0, 4)
+  const name = title(movie)
+  // השם בשפה השנייה, מתחת לכותרת
+  const otherTitle = lang === 'he' ? movie.titleEn : movie.title !== name ? movie.title : ''
+  const synopsis = lang === 'he' ? movie.descriptionHe || movie.description : movie.description
+  const synopsisIsHe = lang === 'he' && !!movie.descriptionHe
+  const warning = movie.warning === 'links'
+    ? t('חלק מהקישורים החיצוניים לסרט הזה לא אמינים במאגר ולכן לא מוצגים.', "Some external links for this movie are unreliable in the database, so they aren't shown.")
+    : movie.warning === 'mixed'
+      ? t('במאגר המקורי חלק מפרטי הסרט הזה שייכים לסרט אחר, ולכן הוסתרו התקציר והקישורים. ציוני האופי והפוסטר נראים תקינים.', 'In the original database some details of this movie belong to another movie, so the synopsis and links are hidden. The scores and poster look correct.')
+      : null
 
   return (
     <>
       <section className="movie-head">
         <Poster movie={movie} className="big" />
         <div className="movie-info">
-          <h1>{movie.title}</h1>
-          <p className="en">{movie.titleEn} {movie.year ? `· ${movie.year}` : ''}</p>
-          <p>במאי: <Link to={`/director/${movie.directorKey}`}>{movie.director}</Link></p>
-          <p className="feel"><b>איך הסרט מרגיש:</b> {top.map((t) => levelWord(t.m, t.v)).join(' · ')}</p>
+          <h1>{name}</h1>
+          {lang === 'he'
+            ? <p className="en">{otherTitle} {movie.year ? `· ${movie.year}` : ''}</p>
+            : <p className="muted">{movie.year || ''}{movie.year && otherTitle ? ' · ' : ''}{otherTitle && <bdi lang="he">{otherTitle}</bdi>}</p>}
+          <p>{t('במאי', 'Director')}: <Link to={`/director/${movie.directorKey}`}>{director(movie)}</Link></p>
+          <p className="feel"><b>{t('איך הסרט מרגיש', 'How it feels')}:</b> {top.map((x) => levelWord(x.m, x.v, lang)).join(' · ')}</p>
           <div className="actions">
             <SaveButton id={movie.id} label />
-            <button className="btn" onClick={() => setPick((p) => !p)} aria-expanded={pick}>השוואה לסרט אחר</button>
-            <button className="btn ghost" onClick={() => { navigator.clipboard?.writeText(window.location.href) }}>העתקת קישור</button>
-            <button className="btn tg" onClick={async () => setTg((await openTelegramWithTitle(movie.title)) ? 'copied' : 'manual')}>פתח בטלגרם</button>
+            <button className="btn" onClick={() => setPick((p) => !p)} aria-expanded={pick}>{t('השוואה לסרט אחר', 'Compare with another movie')}</button>
+            <button className="btn ghost" onClick={() => { navigator.clipboard?.writeText(window.location.href) }}>{t('העתקת קישור', 'Copy link')}</button>
+            <button className="btn tg" onClick={async () => setTg((await openTelegramWithTitle(name)) ? 'copied' : 'manual')}>{t('פתח בטלגרם', 'Open in Telegram')}</button>
           </div>
           {tg && (
             <p className="notice small" role="status">
-              {tg === 'copied' ? <>השם <b>{movie.title}</b> הועתק. הדביקו אותו בשורת החיפוש בטלגרם.</> : <>העתיקו את השם <b className="sel">{movie.title}</b> והדביקו אותו בשורת החיפוש בטלגרם.</>}
-              {' '}טלגרם לא נפתח? <a href="https://web.telegram.org/" target="_blank" rel="noreferrer">טלגרם ווב</a>
+              {tg === 'copied'
+                ? (lang === 'he' ? <>השם <b>{name}</b> הועתק. הדביקו אותו בשורת החיפוש בטלגרם.</> : <>Copied <b>{name}</b>. Paste it into Telegram's search bar.</>)
+                : (lang === 'he' ? <>העתיקו את השם <b className="sel">{name}</b> והדביקו אותו בשורת החיפוש בטלגרם.</> : <>Copy <b className="sel">{name}</b> and paste it into Telegram's search bar.</>)}
+              {' '}{t('טלגרם לא נפתח?', "Telegram didn't open?")} <a href="https://web.telegram.org/" target="_blank" rel="noreferrer">{t('טלגרם ווב', 'Telegram Web')}</a>
             </p>
           )}
           {pick && (
             <div className="panel">
-              <Picker placeholder="לאיזה סרט להשוות?" exclude={movie.id} autoFocus onPick={(m) => nav(`/compare/${movie.id}/${m.id}`)} />
+              <Picker placeholder={t('לאיזה סרט להשוות?', 'Which movie to compare with?')} exclude={movie.id} autoFocus onPick={(m) => nav(`/compare/${movie.id}/${m.id}`)} />
             </div>
           )}
-          {movie.warning && <p className="notice small">⚠️ {movie.warning}</p>}
-          {movie.description && <p className="desc" dir="ltr">{movie.description}</p>}
-          {movie.description && <p className="muted small">התקציר באנגלית, כפי שהוא במאגר.</p>}
+          {warning && <p className="notice small">⚠️ {warning}</p>}
+          {synopsis && <p className="desc" dir={synopsisIsHe ? 'rtl' : 'ltr'}>{synopsis}</p>}
+          {synopsis && lang === 'he' && !synopsisIsHe && <p className="muted small">אין עדיין תקציר בעברית, מוצג התקציר באנגלית.</p>}
           <p className="links">
-            {movie.wikiUrl && <a href={movie.wikiUrl} target="_blank" rel="noreferrer">ויקיפדיה</a>}
+            {movie.wikiUrl && <a href={movie.wikiUrl} target="_blank" rel="noreferrer">{t('ויקיפדיה', 'Wikipedia')}</a>}
             {movie.imdbId && <a href={`https://www.imdb.com/title/${movie.imdbId}/`} target="_blank" rel="noreferrer">IMDb</a>}
             {movie.imdbId && <a href={`https://letterboxd.com/imdb/${movie.imdbId}/`} target="_blank" rel="noreferrer">Letterboxd</a>}
           </p>
@@ -102,16 +118,16 @@ export default function MoviePage() {
       </section>
 
       <section className="panel">
-        <h2>הפרופיל של הסרט</h2>
+        <h2>{t('הפרופיל של הסרט', 'Movie profile')}</h2>
         <div className="profile">
-          {GROUPS.map((g) => (
-            <div key={g}>
-              <h3>{g}</h3>
-              {METRICS.map((m, i) => m.group === g && (
+          {GROUPS.map((g, gi) => (
+            <div key={gi}>
+              <h3>{g[lang]}</h3>
+              {METRICS.map((m, i) => m.group === gi && (
                 <div key={m.key} className="metric">
-                  <div className="metric-top"><span>{m.name}</span><b>{levelWord(m, movie.values[i])}</b></div>
+                  <div className="metric-top"><span>{m.name[lang]}</span><b>{levelWord(m, movie.values[i], lang)}</b></div>
                   <Bar value={movie.values[i]} max={m.max} />
-                  <div className="ends"><span>{m.low}</span><span>{m.high}</span></div>
+                  <div className="ends"><span>{m.low[lang]}</span><span>{m.high[lang]}</span></div>
                 </div>
               ))}
             </div>
@@ -120,50 +136,53 @@ export default function MoviePage() {
       </section>
 
       <section>
-        <h2>סרטים שמרגישים כמו "{movie.title}"</h2>
+        <h2>{t(`סרטים שמרגישים כמו "${name}"`, `Movies that feel like "${name}"`)}</h2>
         <div className="filters panel">
-          <label>אלימות
+          <label>{t('אלימות', 'Violence')}
             <select value={maxV} onChange={(e) => set('vi', e.target.value === '5' ? null : e.target.value)}>
-              <option value="5">בלי הגבלה</option><option value="3">בלי אלימות חזקה</option><option value="2">כמעט בלי אלימות</option>
+              <option value="5">{t('בלי הגבלה', 'No limit')}</option><option value="3">{t('בלי אלימות חזקה', 'No strong violence')}</option><option value="2">{t('כמעט בלי אלימות', 'Almost no violence')}</option>
             </select>
           </label>
-          <label>תוכן מיני
+          <label>{t('תוכן מיני', 'Sexual content')}
             <select value={maxS} onChange={(e) => set('se', e.target.value === '5' ? null : e.target.value)}>
-              <option value="5">בלי הגבלה</option><option value="3">בלי תוכן מפורש</option><option value="2">כמעט בלי תוכן מיני</option>
+              <option value="5">{t('בלי הגבלה', 'No limit')}</option><option value="3">{t('בלי תוכן מפורש', 'Nothing explicit')}</option><option value="2">{t('כמעט בלי תוכן מיני', 'Almost no sexual content')}</option>
             </select>
           </label>
-          <label>עשור
+          <label>{t('עשור', 'Decade')}
             <select value={dec || ''} onChange={(e) => set('dec', e.target.value || null)}>
-              <option value="">הכל</option>
-              {DECADES.map((d) => <option key={d} value={d}>שנות ה-{String(d).slice(2)}</option>)}
+              <option value="">{t('הכל', 'All')}</option>
+              {DECADES.map((d) => <option key={d} value={d}>{t(`שנות ה-${String(d).slice(2)}`, `${d}s`)}</option>)}
             </select>
           </label>
-          <button className="btn ghost" onClick={() => setAdv((a) => !a)} aria-expanded={adv}>אפשרויות מתקדמות</button>
-          {filtersOn && <button className="btn ghost" onClick={() => setSp({}, { replace: true })}>ניקוי הכל</button>}
+          <button className="btn ghost" onClick={() => setAdv((a) => !a)} aria-expanded={adv}>{t('אפשרויות מתקדמות', 'Advanced options')}</button>
+          {filtersOn && <button className="btn ghost" onClick={() => setSp({}, { replace: true })}>{t('ניקוי הכל', 'Clear all')}</button>}
         </div>
         {adv && (
           <div className="panel adv">
-            <p>כמה כל תכונה משפיעה על ההתאמה. 0 אומר להתעלם ממנה, 2.5 אומר שהיא חשובה מאוד.</p>
+            <p>{t('כמה כל תכונה משפיעה על ההתאמה. 0 אומר להתעלם ממנה, 2.5 אומר שהיא חשובה מאוד.', 'How much each trait affects the match. 0 ignores it, 2.5 makes it very important.')}</p>
             <div className="adv-grid">
               {METRICS.map((m, i) => (
                 <label key={m.key} className="slider">
-                  <span>{m.name} <b>{weights[i]}</b></span>
+                  <span>{m.name[lang]} <b>{weights[i]}</b></span>
                   <input type="range" min={0} max={2.5} step={0.1} value={weights[i]} onChange={(e) => setW(i, Number(e.target.value))} />
                 </label>
               ))}
             </div>
-            <button className="btn ghost" onClick={() => set('w', null)}>איפוס לברירת המחדל</button>
-            {allZero && <p className="notice small">כל התכונות על 0, לכן משתמשים בהגדרות הרגילות.</p>}
+            <button className="btn ghost" onClick={() => set('w', null)}>{t('איפוס לברירת המחדל', 'Reset to defaults')}</button>
+            {allZero && <p className="notice small">{t('כל התכונות על 0, לכן משתמשים בהגדרות הרגילות.', 'All traits are at 0, so the default settings are used.')}</p>}
           </div>
         )}
-        <p className="muted">{results.filter((r) => r.score >= 75).length.toLocaleString('he')} סרטים דומים באמת · הכל ממוין מהדומה ביותר. "% דומה" הוא ציון של השיטה, לא סיכוי שתאהבו ולא דירוג איכות.</p>
-        {results.length === 0 && <p className="notice">אין סרטים שעונים על הסינון. נסו להסיר חלק ממנו.</p>}
+        <p className="muted">{num(results.filter((r) => r.score >= 75).length)} {t(
+          'סרטים דומים באמת · הכל ממוין מהדומה ביותר. "% דומה" הוא ציון של השיטה, לא סיכוי שתאהבו ולא דירוג איכות.',
+          "truly similar movies · sorted from most similar. \"% match\" is the method's score, not the chance you'll like it or a quality rating.",
+        )}</p>
+        {results.length === 0 && <p className="notice">{t('אין סרטים שעונים על הסינון. נסו להסיר חלק ממנו.', 'No movies match these filters. Try removing some.')}</p>}
         <div className="grid">
           {results.slice(0, shown).map((r) => (
-            <MovieCard key={r.movie.id} movie={r.movie} score={r.score} reasons={reasonsFor(movie, r.movie, weights === DEFAULT_WEIGHTS ? DEFAULT_WEIGHTS : weights)} compareFrom={movie.id} />
+            <MovieCard key={r.movie.id} movie={r.movie} score={r.score} reasons={reasonsFor(movie, r.movie, weights === DEFAULT_WEIGHTS ? DEFAULT_WEIGHTS : weights, lang)} compareFrom={movie.id} />
           ))}
         </div>
-        {shown < results.length && <div className="center"><button className="btn" onClick={() => set('n', String(shown + PAGE))}>הצגת עוד</button></div>}
+        {shown < results.length && <div className="center"><button className="btn" onClick={() => set('n', String(shown + PAGE))}>{t('הצגת עוד', 'Show more')}</button></div>}
       </section>
     </>
   )

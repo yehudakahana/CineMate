@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { METRICS, type MetricKey } from './metrics'
 
-const DATA_URL = (import.meta.env.VITE_DATA_URL as string) || 'https://cinema-dna.pages.dev/final_classified_db.json'
+// המאגר המעודכן מגיע עם האפליקציה. כתובת חיצונית רק אם הוגדרה במפורש
+const DATA_URL = (import.meta.env.VITE_DATA_URL as string) || ''
 export const IMAGE_BASE = ((import.meta.env.VITE_IMAGE_BASE as string) || 'https://pub-d05124f3b7094e6b8b0af331b009eeef.r2.dev').replace(/\/$/, '')
 
 export interface Movie {
@@ -15,11 +16,12 @@ export interface Movie {
   poster: string | null
   directorImage: string | null
   description: string
+  descriptionHe: string
   wikiUrl: string | null
   imdbId: string | null
   directorWikiUrl: string | null
   values: number[] // לפי סדר METRICS
-  warning: string | null
+  warning: 'links' | 'mixed' | null // מתורגם בדף הסרט
   search: string
 }
 
@@ -46,6 +48,17 @@ interface RawMovie {
   imdb_id?: string
   director_wiki_url?: string
   dna?: Record<string, number>
+  synopsis_he?: string
+  synopsis_en_corrected?: string
+  synopsis_fixed?: boolean
+  synopsis_mismatch?: boolean
+  director_fixed?: boolean
+}
+
+// ערכים ריקים שמגיעים מהגיליון המקורי
+const val = (s?: string) => {
+  const t = (s || '').trim()
+  return t === '#N/A' || t === '0' ? '' : t
 }
 
 const strip = (s: string) => s.toLowerCase().replace(/[\u0591-\u05C7]/g, '').replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim()
@@ -59,30 +72,51 @@ function clean(raw: RawMovie[]): { movies: Movie[]; skipped: number } {
   // מזהי IMDb שמופיעים בשני סרטים שונים הם חשודים: לא מציגים קישור
   const imdbCount = new Map<string, number>()
   raw.forEach((r) => r.imdb_id && imdbCount.set(r.imdb_id, (imdbCount.get(r.imdb_id) || 0) + 1))
+  // בסרטים שהבמאי שלהם תוקן, ייתכן שהשם העברי, התמונה והקישור עדיין של הבמאי הקודם:
+  // לוקחים אותם מסרט אחר של אותו במאי. אם אין כזה, משאירים אותם רק אם הם לא של במאי אחר
+  const dirInfo = new Map<string, RawMovie>()
+  const hebrewOwner = new Map<string, string>()
+  for (const r of raw) {
+    const k = val(r?.director_e)
+    if (!r || !k || r.director_fixed) continue
+    if (val(r.director_h) && !dirInfo.has(k)) dirInfo.set(k, r)
+    if (val(r.director_h)) hebrewOwner.set(val(r.director_h), k)
+  }
+  const fixedInfo = (r: RawMovie): RawMovie | undefined => {
+    const other = dirInfo.get(val(r.director_e))
+    if (other) return other
+    const owner = hebrewOwner.get(val(r.director_h))
+    return owner && owner !== val(r.director_e) ? undefined : r
+  }
   let skipped = 0
   const movies: Movie[] = []
   for (const r of raw) {
     if (!r || !r.id || !r.dna) { skipped++; continue }
     const values = METRICS.map((m) => Number(r.dna![m.key as MetricKey]))
     if (values.some((v) => !Number.isFinite(v))) { skipped++; continue }
-    const title = (r.h_title || '').trim() || (r.e_title || '').trim() || 'ללא שם'
-    const directorEn = (r.director_e || '').trim()
-    const director = (r.director_h || '').trim() || directorEn
+    const title = val(r.h_title) || val(r.e_title) || 'ללא שם'
+    const directorEn = val(r.director_e)
+    const d = r.director_fixed ? fixedInfo(r) : r
+    const director = val(d?.director_h) || directorEn
+    const directorImage = d?.local_director_image || null
     let imdbId = r.imdb_id || null
     let wikiUrl = r.wiki_url || null
-    let description = (r.description || '').trim()
-    let directorWikiUrl = r.director_wiki_url || null
-    let warning: string | null = null
+    // התקציר המתוקן גובר על המקורי. תרגום שלא תואם לסרט לא מוצג
+    let description = (r.synopsis_fixed && val(r.synopsis_en_corrected)) || (r.description || '').trim()
+    let descriptionHe = r.synopsis_mismatch ? '' : val(r.synopsis_he)
+    let directorWikiUrl = d?.director_wiki_url || null
+    let warning: Movie['warning'] = null
     if (imdbId && (imdbCount.get(imdbId) || 0) > 1) {
       imdbId = null
-      warning = 'חלק מהקישורים החיצוניים לסרט הזה לא אמינים במאגר ולכן לא מוצגים.'
+      warning = 'links'
     }
     // רשומה ידועה כמעורבבת: "חלומות" של דאג יוהן הוגרד
     if (/haugerud/i.test(directorEn) && /^dreams/i.test((r.e_title || '').trim())) {
       imdbId = null
       wikiUrl = null
       description = ''
-      warning = 'במאגר המקורי חלק מפרטי הסרט הזה שייכים לסרט אחר, ולכן הוסתרו התקציר והקישורים. ציוני האופי והפוסטר נראים תקינים.'
+      descriptionHe = ''
+      warning = 'mixed'
     }
     const key = slug(directorEn || director) || 'unknown'
     movies.push({
@@ -94,14 +128,15 @@ function clean(raw: RawMovie[]): { movies: Movie[]; skipped: number } {
       directorEn,
       directorKey: key,
       poster: r.local_poster ? `${IMAGE_BASE}/${r.local_poster.replace(/^\//, '')}` : null,
-      directorImage: r.local_director_image ? `${IMAGE_BASE}/${r.local_director_image.replace(/^\//, '')}` : null,
+      directorImage: directorImage ? `${IMAGE_BASE}/${directorImage.replace(/^\//, '')}` : null,
       description,
+      descriptionHe,
       wikiUrl,
       imdbId,
       directorWikiUrl,
       values,
       warning,
-      search: strip([title, r.e_title, director, directorEn].filter(Boolean).join(' ')),
+      search: strip([title, val(r.e_title), director, directorEn].filter(Boolean).join(' ')),
     })
   }
   return { movies, skipped }
@@ -138,11 +173,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       let snap = false
       let raw: RawMovie[]
       try {
+        if (!DATA_URL) throw new Error('no remote')
         raw = await getJson(DATA_URL)
       } catch {
         try {
           raw = await getJson(`${import.meta.env.BASE_URL}data-snapshot.json`)
-          snap = true
+          snap = !!DATA_URL
         } catch {
           if (live) setState({ status: 'error', movies: [], snap: false })
           return

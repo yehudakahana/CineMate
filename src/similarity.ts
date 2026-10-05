@@ -1,5 +1,6 @@
 import { METRICS, norm, levelWord, type MetricKey } from './metrics'
 import type { Movie } from './data'
+import type { Lang } from './i18n'
 
 export type Weights = number[]
 export const DEFAULT_WEIGHTS: Weights = METRICS.map((m) => m.weight)
@@ -34,7 +35,7 @@ export function buildStats(movies: Movie[]): Stats {
 
 export interface Similar { movie: Movie; score: number; reasons: string[] }
 
-export function reasonsFor(a: Movie, b: Movie, w: Weights): string[] {
+export function reasonsFor(a: Movie, b: Movie, w: Weights, lang: Lang): string[] {
   const out = METRICS.map((m, i) => {
     const pa = norm(m, a.values[i])
     const pb = norm(m, b.values[i])
@@ -45,7 +46,8 @@ export function reasonsFor(a: Movie, b: Movie, w: Weights): string[] {
     .filter((x) => x.close >= 0.75 && x.ext >= 0.15)
     .sort((x, y) => y.s - x.s)
     .slice(0, 3)
-  return out.map((x) => `בשניהם: ${levelWord(x.m, Math.round((a.values[x.i] + b.values[x.i]) / 2))}`)
+  const both = lang === 'he' ? 'בשניהם' : 'Both'
+  return out.map((x) => `${both}: ${levelWord(x.m, Math.round((a.values[x.i] + b.values[x.i]) / 2), lang)}`)
 }
 
 export function findSimilar(base: Movie, movies: Movie[], stats: Stats, weights: Weights): Similar[] {

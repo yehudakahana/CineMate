@@ -46,7 +46,7 @@ See `.env.example`:
 ## How it works
 
 ### Data loading (`src/data.tsx`)
-On startup, `DataProvider` fetches the movie database from `VITE_DATA_URL`. If that request fails, it falls back to the bundled copy in `public/data-snapshot.json`. Raw records are cleaned and normalized: titles, director keys, image URLs and a search string are prepared, and bad or duplicate links are hidden. Directors are grouped from the movie list. Saved movies are stored in `localStorage`.
+On startup, `DataProvider` loads the movie database bundled in `public/data-snapshot.json`. If `VITE_DATA_URL` is set, it fetches that URL first and falls back to the bundled copy. Each film has a Hebrew synopsis (`synopsis_he`), shown on the movie page; the English synopsis is the fallback, and corrected English synopses (`synopsis_en_corrected`) replace the originals. Translations flagged as not matching the film (`synopsis_mismatch`) are hidden. For films whose director was corrected (`director_fixed`), the Hebrew name, photo and Wikipedia link are taken from another film by the same director. Raw records are cleaned and normalized: titles, director keys, image URLs and a search string are prepared, and bad or duplicate links are hidden. Directors are grouped from the movie list. Saved movies are stored in `localStorage`.
 
 ### The 12 dimensions (`src/metrics.ts`)
 Each movie has 12 scores grouped into three families:
@@ -82,7 +82,7 @@ src/
   components/         Header, movie cards, movie picker
   pages/              Home, Find, Movie, Compare, Director, Saved, Search, About
 public/
-  data-snapshot.json  offline fallback copy of the database
+  data-snapshot.json  the movie database (bundled with the app)
 ```
 
 ## Routes

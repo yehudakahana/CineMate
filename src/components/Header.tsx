@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { normalizeText, useData, useSaved } from '../data'
+import { useLang } from '../i18n'
 
 export default function Header() {
   const nav = useNavigate()
   const { movies, directors, status } = useData()
   const { ids } = useSaved()
+  const { lang, setLang, t, title, directorName } = useLang()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLFormElement>(null)
@@ -33,11 +35,11 @@ export default function Header() {
   return (
     <header className="top">
       <div className="wrap top-in">
-        <Link to="/" className="logo" aria-label="דף הבית">🎬 סרט לפי הטעם</Link>
+        <Link to="/" className="logo" aria-label={t('דף הבית', 'Home')}>🎬 {t('סרט לפי הטעם', 'CineMate')}</Link>
         <form className="search" ref={box} onSubmit={go} role="search">
           <input
-            type="search" value={q} placeholder="חיפוש סרט או במאי, בעברית או באנגלית"
-            aria-label="חיפוש סרט או במאי"
+            type="search" value={q} placeholder={t('חיפוש סרט או במאי, בעברית או באנגלית', 'Search a movie or director, in English or Hebrew')}
+            aria-label={t('חיפוש סרט או במאי', 'Search a movie or director')}
             onChange={(e) => { setQ(e.target.value); setOpen(true) }}
             onFocus={() => setOpen(true)}
           />
@@ -45,23 +47,30 @@ export default function Header() {
             <div className="sugg">
               {sugg.m.map((m) => (
                 <Link key={m.id} to={`/movie/${m.id}`} onClick={() => { setOpen(false); setQ('') }}>
-                  <span>{m.title}</span><small>{m.year}</small>
+                  <span>{title(m)}</span><small>{m.year}</small>
                 </Link>
               ))}
               {sugg.d.map((d) => (
                 <Link key={d.key} to={`/director/${d.key}`} onClick={() => { setOpen(false); setQ('') }}>
-                  <span>🎥 {d.name}</span><small>במאי</small>
+                  <span>🎥 {directorName(d)}</span><small>{t('במאי', 'Director')}</small>
                 </Link>
               ))}
-              <button type="submit" className="sugg-all">לכל התוצאות</button>
+              <button type="submit" className="sugg-all">{t('לכל התוצאות', 'All results')}</button>
             </div>
           )}
         </form>
-        <nav className="nav" aria-label="ניווט ראשי">
-          <NavLink to="/" end><span className="ni" aria-hidden="true">🧭</span><span>גלו</span></NavLink>
-          <NavLink to="/find"><span className="ni" aria-hidden="true">✨</span><span>מה מתאים לי</span></NavLink>
-          <NavLink to="/saved"><span className="ni" aria-hidden="true">♡</span><span>שמורים</span>{ids.length > 0 && <b className="badge">{ids.length}</b>}</NavLink>
-          <NavLink to="/about"><span className="ni" aria-hidden="true">ℹ️</span><span>איך זה עובד</span></NavLink>
+        <button
+          type="button" className="lang-toggle" lang={lang === 'he' ? 'en' : 'he'}
+          onClick={() => setLang(lang === 'he' ? 'en' : 'he')}
+          aria-label={lang === 'he' ? 'Switch to English' : 'מעבר לעברית'} title={lang === 'he' ? 'English' : 'עברית'}
+        >
+          <span aria-hidden="true">🌐</span> {lang === 'he' ? 'EN' : 'עב'}
+        </button>
+        <nav className="nav" aria-label={t('ניווט ראשי', 'Main navigation')}>
+          <NavLink to="/" end><span className="ni" aria-hidden="true">🧭</span><span>{t('גלו', 'Discover')}</span></NavLink>
+          <NavLink to="/find"><span className="ni" aria-hidden="true">✨</span><span>{t('מה מתאים לי', 'Find by mood')}</span></NavLink>
+          <NavLink to="/saved"><span className="ni" aria-hidden="true">♡</span><span>{t('שמורים', 'Saved')}</span>{ids.length > 0 && <b className="badge">{ids.length}</b>}</NavLink>
+          <NavLink to="/about"><span className="ni" aria-hidden="true">ℹ️</span><span>{t('איך זה עובד', 'How it works')}</span></NavLink>
         </nav>
       </div>
     </header>
