@@ -91,3 +91,64 @@ export function findSimilar(base: Movie, movies: Movie[], stats: Stats, weights:
 }
 
 export function metricKeyIndex(k: MetricKey) { return METRICS.findIndex((m) => m.key === k) }
+
+export interface Recommendation { movie: Movie; score: number; because: Movie[] }
+
+/**
+ * המלצות לפי רשימת סרטים שאהבו. הציון של כל סרט נקבע בעיקר לפי הסרט השמור הכי דומה לו,
+ * ואחר כך מסדרים כך שכל סרט שמור יקבל ייצוג: מי שאהב גם קומדיות וגם דרמות קשות יקבל משניהם
+ */
+export function recommendFor(liked: Movie[], movies: Movie[], stats: Stats, exclude: Set<string> = new Set()): Recommendation[] {
+  if (!liked.length) return []
+  // לא ממליצים על מה שכבר אהבו או כבר שמרו לצפייה
+  const likedIds = new Set([...liked.map((m) => m.id), ...exclude])
+  const per = new Map<string, { score: number; from: Movie }[]>()
+  for (const base of liked) {
+    for (const r of findSimilar(base, movies, stats, DEFAULT_WEIGHTS)) {
+      if (likedIds.has(r.movie.id)) continue
+      let a = per.get(r.movie.id)
+      if (!a) per.set(r.movie.id, (a = []))
+      a.push({ score: r.score, from: base })
+    }
+  }
+  const byId = new Map(movies.map((m) => [m.id, m]))
+  const all: Recommendation[] = []
+  per.forEach((a, id) => {
+    a.sort((x, y) => y.score - x.score)
+    // סרט שדומה לשני סרטים שאהבו מקבל תוספת קטנה
+    const score = a.length > 1 ? 0.8 * a[0].score + 0.2 * a[1].score : a[0].score
+    // "בגלל": הסרטים השמורים שהכי דומים לו
+    const because = a.slice(0, 2).filter((x, i) => i === 0 || x.score >= 75).map((x) => x.from)
+    all.push({ movie: byId.get(id)!, score: Math.round(score * 10) / 10, because })
+  })
+  all.sort((a, b) => b.score - a.score)
+  // סידור לפי תור: כל המלצה נוספת מאותו סרט שמור "עולה" 2 נקודות, כדי שסרט אחד לא ישתלט
+  const pool = all.slice(0, 400)
+  const used = new Map<string, number>()
+  const out: Recommendation[] = []
+  while (pool.length) {
+    let best = 0
+    let bestVal = -Infinity
+    for (let j = 0; j < pool.length; j++) {
+      const v = pool[j].score - 2 * (used.get(pool[j].because[0].id) || 0)
+      if (v > bestVal) { bestVal = v; best = j }
+      if (pool[j].score < bestVal) break // הרשימה ממוינת, אין טעם להמשיך
+    }
+    const [r] = pool.splice(best, 1)
+    used.set(r.because[0].id, (used.get(r.because[0].id) || 0) + 1)
+    out.push(r)
+  }
+  return out.concat(all.slice(400))
+}
+
+/** התכונות הכי בולטות בטעם: איפה הממוצע של הרשימה הכי רחוק מהממוצע הכללי */
+export function tasteTraits(liked: Movie[], stats: Stats, count = 4): { i: number; value: number }[] {
+  if (!liked.length) return []
+  return METRICS.map((_, i) => {
+    const value = liked.reduce((s, m) => s + m.values[i], 0) / liked.length
+    return { i, value, z: (value - stats.mean[i]) / stats.std[i] }
+  })
+    .filter((x) => Math.abs(x.z) >= 0.4)
+    .sort((a, b) => Math.abs(b.z) - Math.abs(a.z))
+    .slice(0, count)
+}

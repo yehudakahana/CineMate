@@ -5,7 +5,7 @@ import { useLang } from '../i18n'
 import { useStats } from '../hooks'
 import { METRICS, GROUPS, NUDGES, NUDGE_BY_ID, levelWord, norm, type Nudge } from '../metrics'
 import { DEFAULT_WEIGHTS, NUDGE_MIN, findSimilar, parseWeights, reasonsFor, weightsToParam } from '../similarity'
-import { Bar, MovieCard, Poster, SaveButton } from '../components/Cards'
+import { Bar, LoveButton, MovieCard, Poster, SaveButton } from '../components/Cards'
 import Picker from '../components/Picker'
 
 const PAGE = 24
@@ -105,6 +105,7 @@ export default function MoviePage() {
           <p className="feel"><b>{t('איך הסרט מרגיש', 'How it feels')}:</b> {top.map((x) => levelWord(x.m, x.v, lang)).join(' · ')}</p>
           <div className="actions">
             <SaveButton id={movie.id} label />
+            <LoveButton id={movie.id} label />
             <button className="btn" onClick={() => setPick((p) => !p)} aria-expanded={pick}>{t('השוואה לסרט אחר', 'Compare with another movie')}</button>
             <button className="btn ghost" onClick={() => { navigator.clipboard?.writeText(window.location.href) }}>{t('העתקת קישור', 'Copy link')}</button>
             <button className="btn tg" onClick={async () => setTg((await openTelegramWithTitle(name)) ? 'copied' : 'manual')}>{t('פתח בטלגרם', 'Open in Telegram')}</button>

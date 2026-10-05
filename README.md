@@ -46,7 +46,7 @@ See `.env.example`:
 ## How it works
 
 ### Data loading (`src/data.tsx`)
-On startup, `DataProvider` loads the movie database bundled in `public/data-snapshot.json`. If `VITE_DATA_URL` is set, it fetches that URL first and falls back to the bundled copy. Each film has a Hebrew synopsis (`synopsis_he`), shown on the movie page; the English synopsis is the fallback, and corrected English synopses (`synopsis_en_corrected`) replace the originals. Translations flagged as not matching the film (`synopsis_mismatch`) are hidden. For films whose director was corrected (`director_fixed`), the Hebrew name, photo and Wikipedia link are taken from another film by the same director. Raw records are cleaned and normalized: titles, director keys, image URLs and a search string are prepared, and bad or duplicate links are hidden. Directors are grouped from the movie list. Saved movies are stored in `localStorage`.
+On startup, `DataProvider` loads the movie database bundled in `public/data-snapshot.json`. If `VITE_DATA_URL` is set, it fetches that URL first and falls back to the bundled copy. Each film has a Hebrew synopsis (`synopsis_he`), shown on the movie page; the English synopsis is the fallback, and corrected English synopses (`synopsis_en_corrected`) replace the originals. Translations flagged as not matching the film (`synopsis_mismatch`) are hidden. For films whose director was corrected (`director_fixed`), the Hebrew name, photo and Wikipedia link are taken from another film by the same director. Raw records are cleaned and normalized: titles, director keys, image URLs and a search string are prepared, and bad or duplicate links are hidden. Directors are grouped from the movie list. Saved (♡, to watch) and loved (★, drives recommendations) movies are stored in `localStorage`.
 
 ### The 12 dimensions (`src/metrics.ts`)
 Each movie has 12 scores grouped into three families:
@@ -68,6 +68,8 @@ Most dimensions are on a 1–10 scale; violence and sexuality are on a 1–5 sca
 5. **"Why it's similar"** explanations pick up to three dimensions where both films are close *and* far from the middle of the scale, so they share something distinctive rather than both being average.
 
 **"Like this, but…"** buttons on the movie page (lighter, warmer, weirder, more plot, less violent and so on) shift the target by 1.2 standard deviations on that dimension, give it a higher weight, and keep only films that really move in that direction. A button is disabled when fewer than 6 films lie in its direction.
+
+**"For you"** (home page and saved page) recommends movies based on the ones marked ★ "Loved it" (stored separately from the ♡ "saved to watch" list). Until something is marked as loved, it falls back to the saved list. Movies already loved or saved are never recommended. Each candidate is scored mostly by its closest saved movie (80%, plus 20% from the second closest), then the list is re-ranked so every saved movie gets a share. Someone who saves both comedies and heavy dramas gets picks from both. Each pick says which saved movies it is like, and a "your taste leans toward" line shows the traits where the saved list differs most from the catalog average.
 
 Search also looks inside the Hebrew and English synopses (words of 3+ letters), so a topic like "prison" finds films that don't have it in the title.
 

@@ -1,15 +1,22 @@
 import { useMemo } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { useData } from '../data'
+import { useData, useLoved, useSaved } from '../data'
 import { useLang } from '../i18n'
 import { MovieCard } from '../components/Cards'
 import Picker from '../components/Picker'
+import ForYou from '../components/ForYou'
 
 const PAGE = 48
 const DECADES = [2020, 2010, 2000, 1990, 1980, 1970]
 
 export default function Home() {
-  const { movies } = useData()
+  const { movies, byId } = useData()
+  const { ids } = useSaved()
+  const loved = useLoved()
+  // ההמלצות מבוססות על "אהבתי". מי שעוד לא סימן כלום מקבל המלצות לפי השמורים
+  const source = loved.ids.length ? 'loved' : 'saved'
+  const liked = useMemo(() => (source === 'loved' ? loved.ids : ids).map((i) => byId.get(i)!).filter(Boolean), [source, loved.ids, ids, byId])
+  const exclude = useMemo(() => new Set([...ids, ...loved.ids]), [ids, loved.ids])
   const { lang, t, num, title } = useLang()
   const decLabel = (d: number) => t(`שנות ה-${String(d).slice(2)}`, `${d}s`)
   const nav = useNavigate()
@@ -54,6 +61,8 @@ export default function Home() {
           </Link>
         </div>
       </section>
+
+      {liked.length > 0 && <ForYou liked={liked} source={source} exclude={exclude} compact />}
 
       <section>
         <div className="row-head">

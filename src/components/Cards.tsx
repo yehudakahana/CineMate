@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { type Movie, useSaved } from '../data'
+import { type Movie, useLoved, useSaved } from '../data'
 import { useLang } from '../i18n'
 
 export function Poster({ movie, className = '' }: { movie: Movie; className?: string }) {
@@ -32,6 +32,22 @@ export function SaveButton({ id, label = false }: { id: string; label?: boolean 
   )
 }
 
+export function LoveButton({ id, label = false }: { id: string; label?: boolean }) {
+  const { has, toggle } = useLoved()
+  const on = has(id)
+  const { t } = useLang()
+  return (
+    <button
+      type="button" className={`save love ${on ? 'on' : ''} ${label ? 'with-label' : ''}`}
+      aria-pressed={on} aria-label={on ? t('הסרה מ"אהבתי"', 'Remove from loved') : t('אהבתי את הסרט', 'I loved it')}
+      title={label ? undefined : on ? t('אהבתי', 'Loved it') : t('אהבתי? ההמלצות ילמדו מזה', 'Loved it? Recommendations learn from this')}
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle(id) }}
+    >
+      <span aria-hidden="true">{on ? '★' : '☆'}</span>{label && <span>{t('אהבתי', 'Loved it')}</span>}
+    </button>
+  )
+}
+
 export function MovieCard({ movie, score, reasons, compareFrom }: { movie: Movie; score?: number; reasons?: string[]; compareFrom?: string }) {
   const { t, num, title, director } = useLang()
   return (
@@ -45,6 +61,7 @@ export function MovieCard({ movie, score, reasons, compareFrom }: { movie: Movie
         <p className="meta">{movie.year} · {director(movie)}</p>
       </Link>
       <SaveButton id={movie.id} />
+      <LoveButton id={movie.id} />
       {reasons && reasons.length > 0 && (
         <ul className="reasons">{reasons.map((r) => <li key={r}>{r}</li>)}</ul>
       )}

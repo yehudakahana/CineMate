@@ -219,31 +219,35 @@ export function useData(): DataState {
   return c
 }
 
-// ---- שמירה ----
-const KEY = 'cdna-saved-v1'
-function readSaved(): string[] {
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] }
+// ---- רשימות אישיות: "שמורים" (לצפייה) ו"אהבתי" (מזין את ההמלצות) ----
+function makeList(key: string, event: string) {
+  const read = (): string[] => {
+    try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
+  }
+  return function useList() {
+    const [ids, setIds] = useState<string[]>(read)
+    useEffect(() => {
+      const on = () => setIds(read())
+      window.addEventListener(event, on)
+      window.addEventListener('storage', on)
+      return () => { window.removeEventListener(event, on); window.removeEventListener('storage', on) }
+    }, [])
+    const write = useCallback((next: string[]) => {
+      try { localStorage.setItem(key, JSON.stringify(next)) } catch { /* ignore */ }
+      window.dispatchEvent(new Event(event))
+      setIds(next)
+    }, [])
+    const toggle = useCallback((id: string) => {
+      const cur = read()
+      write(cur.includes(id) ? cur.filter((x) => x !== id) : [id, ...cur])
+    }, [write])
+    const addMany = useCallback((more: string[]) => {
+      const cur = read()
+      write([...more.filter((x) => !cur.includes(x)), ...cur])
+    }, [write])
+    return { ids, has: (id: string) => ids.includes(id), toggle, addMany }
+  }
 }
-export function useSaved() {
-  const [ids, setIds] = useState<string[]>(readSaved)
-  useEffect(() => {
-    const on = () => setIds(readSaved())
-    window.addEventListener('cdna-saved', on)
-    window.addEventListener('storage', on)
-    return () => { window.removeEventListener('cdna-saved', on); window.removeEventListener('storage', on) }
-  }, [])
-  const write = useCallback((next: string[]) => {
-    try { localStorage.setItem(KEY, JSON.stringify(next)) } catch { /* ignore */ }
-    window.dispatchEvent(new Event('cdna-saved'))
-    setIds(next)
-  }, [])
-  const toggle = useCallback((id: string) => {
-    const cur = readSaved()
-    write(cur.includes(id) ? cur.filter((x) => x !== id) : [id, ...cur])
-  }, [write])
-  const addMany = useCallback((more: string[]) => {
-    const cur = readSaved()
-    write([...more.filter((x) => !cur.includes(x)), ...cur])
-  }, [write])
-  return { ids, has: (id: string) => ids.includes(id), toggle, addMany }
-}
+
+export const useSaved = makeList('cdna-saved-v1', 'cdna-saved')
+export const useLoved = makeList('cdna-loved-v1', 'cdna-loved')
