@@ -11,6 +11,12 @@ export default function SearchPage() {
   const q = sp.get('q') || ''
   const n = normalizeText(q)
   const mv = useMemo(() => (n ? movies.filter((m) => m.search.includes(n)) : []), [n, movies])
+  // סרטים שהמילים מופיעות בתקציר שלהם (ולא בשם). מילים קצרות מדי מחזירות יותר מדי רעש
+  const byPlot = useMemo(() => {
+    const words = n.split(' ').filter((w) => w.length >= 3)
+    if (!words.length) return []
+    return movies.filter((m) => !m.search.includes(n) && words.every((w) => m.searchPlot.includes(w)))
+  }, [n, movies])
   const dr = useMemo(() => (n ? directors.filter((d) => normalizeText(`${d.name} ${d.nameEn}`).includes(n)) : []), [n, directors])
   return (
     <section>
@@ -21,9 +27,15 @@ export default function SearchPage() {
           <div className="chips">{dr.map((d) => <Link key={d.key} className="chip" to={`/director/${d.key}`}>🎥 {directorName(d)} <small>({d.movies.length})</small></Link>)}</div>
         </>
       )}
-      <h2>{t('סרטים', 'Movies')} ({mv.length})</h2>
-      {mv.length === 0 && dr.length === 0 && <p className="notice">{t('לא נמצאו תוצאות. נסו שם אחר או כתיבה באנגלית.', 'No results. Try another name or spelling it in Hebrew.')}</p>}
+      {(mv.length > 0 || byPlot.length === 0) && <h2>{t('סרטים', 'Movies')} ({mv.length})</h2>}
+      {mv.length === 0 && dr.length === 0 && byPlot.length === 0 && <p className="notice">{t('לא נמצאו תוצאות. נסו שם אחר או כתיבה באנגלית.', 'No results. Try another name or spelling it in Hebrew.')}</p>}
       <div className="grid">{mv.map((m) => <MovieCard key={m.id} movie={m} />)}</div>
+      {byPlot.length > 0 && (
+        <>
+          <h2>{t('מופיע בתקציר', 'Mentioned in the synopsis')} ({byPlot.length})</h2>
+          <div className="grid">{byPlot.map((m) => <MovieCard key={m.id} movie={m} />)}</div>
+        </>
+      )}
     </section>
   )
 }

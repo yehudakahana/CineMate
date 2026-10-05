@@ -1,4 +1,4 @@
-import { METRICS, norm, levelWord, type MetricKey } from './metrics'
+import { METRICS, norm, levelWord, type MetricKey, type Nudge } from './metrics'
 import type { Movie } from './data'
 import type { Lang } from './i18n'
 
@@ -50,16 +50,33 @@ export function reasonsFor(a: Movie, b: Movie, w: Weights, lang: Lang): string[]
   return out.map((x) => `${both}: ${levelWord(x.m, Math.round((a.values[x.i] + b.values[x.i]) / 2), lang)}`)
 }
 
-export function findSimilar(base: Movie, movies: Movie[], stats: Stats, weights: Weights): Similar[] {
+// כמה סטיות תקן להזיז את המטרה בכל "אבל..."
+const NUDGE_SHIFT = 1.2
+// כמה הסרט צריך להיות לפחות בכיוון המבוקש, בסטיות תקן
+export const NUDGE_MIN = 0.3
+
+export function findSimilar(base: Movie, movies: Movie[], stats: Stats, weights: Weights, nudges: Nudge[] = []): Similar[] {
   let w = weights
   if (w.every((x) => x <= 0)) w = DEFAULT_WEIGHTS
   const zb = stats.z.get(base.id)!
+  // המטרה היא הסרט עצמו, מוזז בתכונות שביקשו לשנות. התכונות האלה גם מקבלות משקל גבוה
+  const target = [...zb]
+  if (nudges.length) w = [...w]
+  const dirs: { i: number; dir: number }[] = []
+  for (const n of nudges) {
+    const i = METRICS.findIndex((m) => m.key === n.key)
+    target[i] = zb[i] + n.dir * NUDGE_SHIFT
+    w[i] = Math.max(w[i], 2)
+    dirs.push({ i, dir: n.dir })
+  }
   const rows: { movie: Movie; d: number }[] = []
   for (const m of movies) {
     if (m.id === base.id) continue
     const zm = stats.z.get(m.id)!
+    // "קליל יותר" חייב להיות באמת קליל יותר מהסרט המקורי
+    if (dirs.some(({ i, dir }) => (zm[i] - zb[i]) * dir < NUDGE_MIN)) continue
     let s = 0
-    for (let i = 0; i < zb.length; i++) s += w[i] * (zb[i] - zm[i]) ** 2
+    for (let i = 0; i < zb.length; i++) s += w[i] * (target[i] - zm[i]) ** 2
     rows.push({ movie: m, d: Math.sqrt(s) })
   }
   const pos = rows.map((r) => r.d).filter((d) => d > 0).sort((a, b) => a - b)

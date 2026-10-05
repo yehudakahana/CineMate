@@ -76,3 +76,19 @@ export const MOODS: { id: string; label: Text; emoji: string; hint: Text; f: Par
   { id: 'weird', label: { he: 'משהו מוזר ויוצא דופן', en: 'Something strange and unusual' }, emoji: '🌀', hint: { he: 'חלומי וסוריאליסטי', en: 'Dreamlike and surreal' }, f: { grounded_vs_surreal: 'h' } },
   { id: 'clean', label: { he: 'בלי אלימות ובלי תוכן מיני', en: 'No violence, no sex' }, emoji: '🕊️', hint: { he: 'שקט לצפייה משותפת', en: 'Safe to watch together' }, f: { violence_level: 'l', sexuality_level: 'l' } },
 ]
+
+/** "כמו הסרט הזה, אבל..." — הזזה של תכונה אחת למעלה או למטה */
+export interface Nudge { id: string; key: MetricKey; dir: 1 | -1; label: Text }
+export const NUDGES: Nudge[] = [
+  { id: 'lighter', key: 'emotional_heaviness', dir: -1, label: { he: 'קליל יותר', en: 'lighter' } },
+  { id: 'heavier', key: 'emotional_heaviness', dir: 1, label: { he: 'כבד יותר', en: 'heavier' } },
+  { id: 'warmer', key: 'emotional_warmth', dir: 1, label: { he: 'חם יותר', en: 'warmer' } },
+  { id: 'funnier', key: 'irony_and_satire', dir: 1, label: { he: 'אירוני ומצחיק יותר', en: 'funnier' } },
+  { id: 'deeper', key: 'psychological_depth', dir: 1, label: { he: 'עמוק יותר', en: 'deeper' } },
+  { id: 'weirder', key: 'grounded_vs_surreal', dir: 1, label: { he: 'מוזר יותר', en: 'weirder' } },
+  { id: 'realer', key: 'grounded_vs_surreal', dir: -1, label: { he: 'מציאותי יותר', en: 'more realistic' } },
+  { id: 'plot', key: 'plot_vs_mood', dir: -1, label: { he: 'עם יותר עלילה', en: 'more plot' } },
+  { id: 'mood', key: 'plot_vs_mood', dir: 1, label: { he: 'עם יותר אווירה', en: 'more atmosphere' } },
+  { id: 'calmer', key: 'violence_level', dir: -1, label: { he: 'פחות אלים', en: 'less violent' } },
+]
+export const NUDGE_BY_ID = Object.fromEntries(NUDGES.map((n) => [n.id, n])) as Record<string, Nudge>

@@ -67,6 +67,10 @@ Most dimensions are on a 1–10 scale; violence and sexuality are on a 1–5 sca
 4. Films by the same director get a small bonus (+6, capped at 96).
 5. **"Why it's similar"** explanations pick up to three dimensions where both films are close *and* far from the middle of the scale, so they share something distinctive rather than both being average.
 
+**"Like this, but…"** buttons on the movie page (lighter, warmer, weirder, more plot, less violent and so on) shift the target by 1.2 standard deviations on that dimension, give it a higher weight, and keep only films that really move in that direction. A button is disabled when fewer than 6 films lie in its direction.
+
+Search also looks inside the Hebrew and English synopses (words of 3+ letters), so a topic like "prison" finds films that don't have it in the title.
+
 Users can tune the weights per dimension. The weights are stored in the URL, so results can be shared.
 
 ## Project structure

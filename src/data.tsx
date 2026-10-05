@@ -23,6 +23,7 @@ export interface Movie {
   values: number[] // לפי סדר METRICS
   warning: 'links' | 'mixed' | null // מתורגם בדף הסרט
   search: string
+  searchPlot: string // התקצירים, לחיפוש לפי נושא
 }
 
 export interface Director {
@@ -138,6 +139,7 @@ function clean(raw: RawMovie[]): { movies: Movie[]; skipped: number } {
       values,
       warning,
       search: strip([title, val(r.e_title), director, directorEn].filter(Boolean).join(' ')),
+      searchPlot: strip(`${descriptionHe} ${description}`),
     })
   }
   return { movies, skipped }

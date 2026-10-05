@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useData } from '../data'
 import { useLang } from '../i18n'
 import { useStats } from '../hooks'
-import { METRICS, GROUPS, levelWord, norm } from '../metrics'
-import { DEFAULT_WEIGHTS, findSimilar, parseWeights, reasonsFor, weightsToParam } from '../similarity'
+import { METRICS, GROUPS, NUDGES, NUDGE_BY_ID, levelWord, norm, type Nudge } from '../metrics'
+import { DEFAULT_WEIGHTS, NUDGE_MIN, findSimilar, parseWeights, reasonsFor, weightsToParam } from '../similarity'
 import { Bar, MovieCard, Poster, SaveButton } from '../components/Cards'
 import Picker from '../components/Picker'
 
@@ -38,15 +38,16 @@ export default function MoviePage() {
   const shown = Number(sp.get('n')) || PAGE
   const weights = useMemo(() => parseWeights(sp.get('w')), [sp])
   const allZero = weights.every((x) => x <= 0)
+  const nudges = useMemo(() => (sp.get('but') || '').split(',').map((x) => NUDGE_BY_ID[x]).filter(Boolean), [sp])
 
   const results = useMemo(() => {
     if (!movie) return []
     const vi = METRICS.findIndex((m) => m.key === 'violence_level')
     const se = METRICS.findIndex((m) => m.key === 'sexuality_level')
-    return findSimilar(movie, movies, stats, weights).filter(
+    return findSimilar(movie, movies, stats, weights, nudges).filter(
       (r) => r.movie.values[vi] <= maxV && r.movie.values[se] <= maxS && (!dec || (r.movie.year >= dec && r.movie.year < dec + 10)),
     )
-  }, [movie, movies, stats, weights, maxV, maxS, dec])
+  }, [movie, movies, stats, weights, nudges, maxV, maxS, dec])
 
   if (!movie) return <div className="notice big"><h2>{t('הסרט לא נמצא', 'Movie not found')}</h2><Link className="btn primary" to="/">{t('חזרה לדף הבית', 'Back to home')}</Link></div>
 
@@ -60,7 +61,22 @@ export default function MoviePage() {
     const w = [...weights]; w[i] = v
     set('w', weightsToParam(w))
   }
-  const filtersOn = maxV < 5 || maxS < 5 || dec > 0 || !!sp.get('w')
+  const filtersOn = maxV < 5 || maxS < 5 || dec > 0 || !!sp.get('w') || nudges.length > 0
+  // לחיצה מוסיפה או מסירה. הכיוון ההפוך של אותה תכונה יורד
+  const toggleNudge = (n: Nudge) => {
+    const on = nudges.includes(n)
+    const next = on ? nudges.filter((x) => x !== n) : [...nudges.filter((x) => x.key !== n.key), n]
+    set('but', next.length ? next.map((x) => x.id).join(',') : null)
+  }
+  // אי אפשר "קליל יותר" לסרט שכבר כמעט הכי קליל: צריך כמה סרטים בכיוון הזה
+  const canNudge = (n: Nudge) => {
+    const i = METRICS.findIndex((m) => m.key === n.key)
+    const zb = stats.z.get(movie.id)![i]
+    let count = 0
+    for (const z of stats.z.values()) if ((z[i] - zb) * n.dir >= NUDGE_MIN && ++count >= 6) return true
+    return false
+  }
+  const butText = nudges.map((n) => n.label[lang]).join(lang === 'he' ? ' ו' : ' and ')
 
   // התכונות הבולטות ביותר של הסרט
   const top = METRICS.map((m, i) => ({ m, v: movie.values[i], e: Math.abs(norm(m, movie.values[i]) - 0.5) }))
@@ -136,7 +152,27 @@ export default function MoviePage() {
       </section>
 
       <section>
-        <h2>{t(`סרטים שמרגישים כמו "${name}"`, `Movies that feel like "${name}"`)}</h2>
+        <h2>
+          {nudges.length
+            ? t(`סרטים כמו "${name}", אבל ${butText}`, `Like "${name}", but ${butText}`)
+            : t(`סרטים שמרגישים כמו "${name}"`, `Movies that feel like "${name}"`)}
+        </h2>
+        <div className="but-row" role="group" aria-label={t('כמו הסרט הזה, אבל...', 'Like this, but...')}>
+          <span className="but-lead">{t('כמו הסרט הזה, אבל…', 'Like this, but…')}</span>
+          {NUDGES.map((n) => {
+            const on = nudges.includes(n)
+            const ok = on || canNudge(n)
+            return (
+              <button
+                key={n.id} type="button" className={`chip but ${on ? 'on' : ''}`} aria-pressed={on} disabled={!ok}
+                title={ok ? undefined : t('הסרט כבר בקצה של התכונה הזו', 'This movie is already at the end of this scale')}
+                onClick={() => toggleNudge(n)}
+              >
+                {n.label[lang]}
+              </button>
+            )
+          })}
+        </div>
         <div className="filters panel">
           <label>{t('אלימות', 'Violence')}
             <select value={maxV} onChange={(e) => set('vi', e.target.value === '5' ? null : e.target.value)}>
