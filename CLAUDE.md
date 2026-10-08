@@ -1,11 +1,15 @@
-# הוראות לעבודה על הריפו
+# Working on this repo
+
+## Language
+- **Everything is in English** except text shown to end users: code, comments, identifiers, internal/log error messages, commit messages, branch names, PR titles and descriptions, docs and this file.
+- User-facing UI copy stays in Hebrew (via `src/i18n.tsx`).
+- Existing Hebrew comments and docs are legacy; convert them when touching a file, not in drive-by edits.
 
 ## Git
-- **אף פעם לא לדחוף ישירות ל-`main`.** כל שינוי בענף נפרד (`feat/...`, `fix/...`, `chore/...`) ונפתח PR. ה-merge נעשה רק על ידי יהודה.
-- אין force push ל-`main`.
-- כל push ל-`main` מפעיל deploy ל-GitHub Pages (`.github/workflows/deploy.yml`), ולכן merge = עלייה לאוויר.
+- **Never push directly to `main`.** Every change goes on its own branch (`feat/...`, `fix/...`, `chore/...`) and through a PR. Only Yehuda merges.
+- No force pushes to `main`.
+- Every push to `main` triggers a deploy to GitHub Pages (`.github/workflows/deploy.yml`), so merge = live.
 
-## הקשר
-- React 18 + Vite + TypeScript, ‏react-router-dom.
-- UI בעברית (עם i18n ב-`src/i18n.tsx`), קוד וקומיטים באנגלית.
-- לפני PR: `npm run build` (כולל `tsc --noEmit`) צריך לעבור.
+## Context
+- React 18 + Vite + TypeScript, react-router-dom.
+- Before opening a PR: `npm run build` (includes `tsc --noEmit`) must pass.
